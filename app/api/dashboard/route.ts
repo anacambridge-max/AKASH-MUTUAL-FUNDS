@@ -49,7 +49,7 @@ async function fetchAmfiNavs():Promise<Map<string,AmfiNav>>{
 async function mfapiHistory(code:string):Promise<{nav:number;previousNav:number;date:string}|null>{
  for(let attempt=0;attempt<2;attempt++){
   try{
-   const j=await json(`https://api.mfapi.in/mf/${code}`,'','force-cache');
+   const j=await json(`https://api.mfapi.in/mf/${code}`,{},'force-cache');
    const d=Array.isArray(j.data)?j.data:[];
    const nav=Number(d[0]?.nav),previousNav=Number(d[1]?.nav);
    if(Number.isFinite(nav)&&Number.isFinite(previousNav)&&previousNav!==0)return{nav,previousNav,date:d[0]?.date??''};
@@ -63,10 +63,8 @@ async function fund(code:string,amfi:Map<string,AmfiNav>):Promise<FundSnapshot>{
  if(current){
   const h=await mfapiHistory(code);
   if(h){
-   const sameCurrent=Math.abs(h.nav-current.nav)<0.00001;
-   const nav=sameCurrent?current.nav:h.nav;
-   const date=current.date||h.date;
-   return{nav,previousNav:h.previousNav,change:((nav-h.previousNav)/h.previousNav)*100,date,status:'LIVE',source:'AMFI'};
+   const nav=current.nav;
+   return{nav,previousNav:h.previousNav,change:((nav-h.previousNav)/h.previousNav)*100,date:current.date||h.date,status:'LIVE',source:'AMFI'};
   }
   return{nav:current.nav,previousNav:null,change:null,date:current.date,status:'LIVE',source:'AMFI'};
  }
@@ -80,11 +78,9 @@ async function yahooIndex(name:string,group:IndexSnapshot['group']):Promise<Inde
 async function getAllNseIndices(){try{const j=await json('https://www.nseindia.com/api/allIndices',{'accept-language':'en-US,en;q=0.9','referer':'https://www.nseindia.com/market-data/live-market-indices','sec-fetch-site':'same-origin'});return Array.isArray(j.data)?j.data:[]}catch{return[]}}
 
 async function mapLimit<T,R>(items:T[],limit:number,fn:(item:T)=>Promise<R>):Promise<R[]>{
- const out:R[] = new Array(items.length);
- let cursor=0;
+ const out:R[] = new Array(items.length);let cursor=0;
  const worker=async()=>{while(true){const i=cursor++;if(i>=items.length)return;out[i]=await fn(items[i]);}};
- await Promise.all(Array.from({length:Math.min(limit,items.length)},()=>worker()));
- return out;
+ await Promise.all(Array.from({length:Math.min(limit,items.length)},()=>worker()));return out;
 }
 
 export async function GET(){
