@@ -1,18 +1,12 @@
 import {NextResponse} from 'next/server';
 import {GET as dashboardGET} from '../dashboard/route';
 
-export const dynamic='force-dynamic';
-export const maxDuration=60;
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
-export async function GET(){
- const now=new Date();
- const istDay=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',weekday:'short'}).format(now);
- if(istDay==='Sat'||istDay==='Sun'){
-  return NextResponse.json({ok:true,skipped:true,reason:'Weekend',capturedAt:now.toISOString()});
- }
- const response=await dashboardGET();
- const data=await response.json();
- const summary=data?.summary||{};
- console.log(JSON.stringify({event:'3pm-nav-capture',capturedAt:now.toISOString(),trackedFunds:summary.trackedFunds,liveFunds:summary.liveFunds,liveIndices:summary.liveIndices,fallingIndices:summary.fallingIndices,topFunds:(data.funds||[]).slice(0,5).map((f:any)=>({code:f.code,name:f.name,score:f.score,signal:f.signal,nav:f.nav,change:f.change,leadSector:f.leadSector,leadMove:f.leadMove}))}));
- return NextResponse.json({ok:true,capturedAt:now.toISOString(),summary:summary,topFunds:(data.funds||[]).slice(0,5)});
-}
+type CaptureFund = {estimateNav:number|null;estimateChange:number|null;marketMove:number|null;relativeCorrection:number|null;sectorScore:number;relativeScore:number;confirmationScore:number;qualityScore:number;score:number;signal:string;mappedLive:number;mappedTotal:number};
+
+function istNow(){const now=new Date();const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hour12:false}).formatToParts(now);const get=(type:string)=>parts.find(part=>part.type===type)?.value??'';return{now,weekday:get('weekday'),year:get('year'),month:get('month'),day:get('day'),hour:Number(get('hour')),minute:Number(get('minute'))};}
+function captureWindow(p:ReturnType<typeof istNow>){return p.weekday!=='Sat'&&p.weekday!=='Sun'&&((p.hour===14&&p.minute>=55)||(p.hour===15&&p.minute<=10));}
+
+export async function GET(){const p=istNow();if(!captureWindow(p))return NextResponse.json({ok:true,captured:false,ready:false,reason:'The server-side 3 PM capture window is 14:55–15:10 IST on trading days.',date:`${p.year}-${p.month}-${p.day}`},{headers:{'Cache-Control':'no-store'}});try{const response=await dashboardGET();const data=await response.json() as {updatedAt?:string;summary?:Record<string,number>;funds?:Array<{code:string;name:string;nav:number|null;previousNav:number|null;change:number|null;sectorMove:number|null;relativeCorrection:number|null;sectorScore:number;relativeScore:number;confirmationScore:number;qualityScore:number;score:number;signal:string;mappedLive:number;mappedTotal:number}>};const funds:Record<string,CaptureFund>={};for(const fund of data.funds??[]){const base=fund.previousNav??(fund.nav!=null&&fund.change!=null?fund.nav/(1+fund.change/100):null);const move=fund.sectorMove;funds[fund.code]={estimateNav:base!=null&&move!=null?base*(1+move/100):null,estimateChange:move,marketMove:move,relativeCorrection:fund.relativeCorrection,sectorScore:fund.sectorScore,relativeScore:fund.relativeScore,confirmationScore:fund.confirmationScore,qualityScore:fund.qualityScore,score:fund.score,signal:fund.signal,mappedLive:fund.mappedLive,mappedTotal:fund.mappedTotal};}const snapshot={date:`${p.year}-${p.month}-${p.day}`,capturedAt:new Date().toISOString(),timezone:'Asia/Kolkata',funds,summary:data.summary??{}};console.log(JSON.stringify({event:'3pm-nav-capture',capturedAt:snapshot.capturedAt,date:snapshot.date,summary:snapshot.summary,coverage:`${data.summary?.liveIndices??0}/50`,topFunds:(data.funds??[]).slice(0,5).map(f=>({code:f.code,name:f.name,score:f.score,signal:f.signal,estimateNav:funds[f.code]?.estimateNav}))}));return NextResponse.json({ok:true,captured:true,ready:true,snapshot},{headers:{'Cache-Control':'public, s-maxage=43200, stale-while-revalidate=600','CDN-Cache-Control':'public, s-maxage=43200, stale-while-revalidate=600','Vercel-CDN-Cache-Control':'public, s-maxage=43200, stale-while-revalidate=600'}});}catch(error){console.error('3 PM capture failed',error);return NextResponse.json({ok:false,captured:false,ready:false,error:'3 PM capture failed'},{status:500,headers:{'Cache-Control':'no-store'}});}}
