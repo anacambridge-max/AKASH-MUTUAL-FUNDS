@@ -1,9 +1,15 @@
 import {NextResponse} from 'next/server';
 import {GET as dashboardGET} from '../dashboard/route';
+
 export const dynamic='force-dynamic';
 export const maxDuration=60;
+
 export async function GET(){
  const now=new Date();
+ const istDay=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kolkata',weekday:'short'}).format(now);
+ if(istDay==='Sat'||istDay==='Sun'){
+  return NextResponse.json({ok:true,skipped:true,reason:'Weekend',capturedAt:now.toISOString()});
+ }
  const response=await dashboardGET();
  const data=await response.json();
  const summary=data?.summary||{};
