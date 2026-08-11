@@ -1,26 +1,87 @@
 'use client';
 import {useCallback,useEffect,useMemo,useState} from 'react';
-import {Activity,ArrowDownRight,ArrowUpRight,BarChart3,Clock3,RefreshCw,Sparkles,Target,TrendingDown,ShieldCheck,Search} from 'lucide-react';
+import {Activity,ArrowDownRight,ArrowUpRight,BarChart3,Clock3,RefreshCw,Sparkles,Target,TrendingDown,ShieldCheck,Search,TimerReset} from 'lucide-react';
 
 type Fund={code:string;name:string;category:string;nav:number|null;previousNav:number|null;change:number|null;date:string|null;status:string;sectorMove:number|null;leadSector:string;leadMove:number|null;relativeCorrection:number|null;score:number;signal:string;reason:string};
 type Index={name:string;value:number|null;change:number|null;status:string;group:'BROAD'|'SECTORAL'|'THEMATIC'};
 type Sector={name:string;value:number|null;change:number|null;status:string;severity:string};
 type Summary={trackedFunds:number;liveFunds:number;liveIndices:number;fallingIndices:number;buySignals:number;accumulateSignals:number};
+type ThreePmFund={estimateNav:number|null;estimateChange:number|null;marketMove:number|null};
+type ThreePmSnapshot={date:string;capturedAt:string;funds:Record<string,ThreePmFund>};
+
 const money=(n:number|null)=>n==null?'—':`₹${n.toFixed(4)}`;
 const pct=(n:number|null)=>n==null?'—':`${n>=0?'+':''}${n.toFixed(2)}%`;
 const cls=(n:number|null)=>n==null?'muted':n<0?'negative':'positive';
+
+function istParts(){
+ const now=new Date();
+ const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short',hour12:false}).formatToParts(now);
+ const get=(t:string)=>parts.find(p=>p.type===t)?.value||'';
+ return {now,year:get('year'),month:get('month'),day:get('day'),hour:Number(get('hour')),minute:Number(get('minute')),second:Number(get('second')),weekday:get('weekday')};
+}
+function isTradingDay(p:ReturnType<typeof istParts>){return p.weekday!=='Sat'&&p.weekday!=='Sun';}
+function inThreePmWindow(p:ReturnType<typeof istParts>){return isTradingDay(p)&&((p.hour===14&&p.minute>=55)||(p.hour===15&&p.minute<=5));}
+function snapshotKey(p:ReturnType<typeof istParts>){return `${p.year}-${p.month}-${p.day}`;}
+function estimateThreePm(f:Fund,snapshot?:ThreePmSnapshot|null){
+ const s=snapshot?.funds?.[f.code];
+ const move=s?.marketMove??f.sectorMove;
+ const base=f.previousNav??(f.nav!=null&&f.change!=null?f.nav/(1+f.change/100):null);
+ if(base==null||move==null)return{nav:null,change:null,move};
+ return{nav:base*(1+move/100),change:move,move};
+}
+
 export default function Home(){
  const [funds,setFunds]=useState<Fund[]>([]),[indices,setIndices]=useState<Index[]>([]),[sectors,setSectors]=useState<Sector[]>([]),[summary,setSummary]=useState<Summary|null>(null),[updated,setUpdated]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[indexFilter,setIndexFilter]=useState<'ALL'|'BROAD'|'SECTORAL'|'THEMATIC'>('ALL'),[indexSearch,setIndexSearch]=useState('');
- const load=useCallback(async()=>{setLoading(true);setError('');try{const r=await fetch('/api/dashboard',{cache:'no-store'});if(!r.ok)throw new Error('API');const j=await r.json();setFunds(j.funds||[]);setIndices(j.indices||[]);setSectors(j.sectors||[]);setSummary(j.summary||null);setUpdated(j.updatedAt||'')}catch{setError('Live market feed unavailable. Press Refresh Now to retry.')}finally{setLoading(false)}},[]);
- useEffect(()=>{load();const t=setInterval(load,15*60*1000);return()=>clearInterval(t)},[load]);
+ const [threePmSnapshot,setThreePmSnapshot]=useState<ThreePmSnapshot|null>(null);
+
+ const load=useCallback(async()=>{
+  setLoading(true);setError('');
+  try{
+   const r=await fetch('/api/dashboard',{cache:'no-store'});if(!r.ok)throw new Error('API');
+   const j=await r.json();
+   const nextFunds:Fund[]=j.funds||[];
+   setFunds(nextFunds);setIndices(j.indices||[]);setSectors(j.sectors||[]);setSummary(j.summary||null);setUpdated(j.updatedAt||'');
+
+   const p=istParts();
+   const key=snapshotKey(p);
+   if(typeof window!=='undefined'){
+    const stored=window.localStorage.getItem('ak-mf-3pm-snapshot');
+    if(stored){try{const parsed=JSON.parse(stored) as ThreePmSnapshot;if(parsed.date===key||!isTradingDay(p))setThreePmSnapshot(parsed);}catch{}}
+    if(inThreePmWindow(p)){
+     const snap:ThreePmSnapshot={date:key,capturedAt:new Date().toISOString(),funds:{}};
+     for(const f of nextFunds){const est=estimateThreePm(f);snap.funds[f.code]={estimateNav:est.nav,estimateChange:est.change,marketMove:est.move};}
+     window.localStorage.setItem('ak-mf-3pm-snapshot',JSON.stringify(snap));
+     setThreePmSnapshot(snap);
+    }
+   }
+  }catch{setError('Live market feed unavailable. Press Refresh Now to retry.')}finally{setLoading(false)}
+ },[]);
+
+ useEffect(()=>{
+  let timer:number;
+  const tick=async()=>{await load();const p=istParts();timer=window.setTimeout(tick,inThreePmWindow(p)?30_000:15*60*1000)};
+  tick();
+  return()=>window.clearTimeout(timer);
+ },[load]);
+
  const top=useMemo(()=>funds.slice(0,5),[funds]);
  const best=useMemo(()=>funds.filter(x=>x.signal==='BUY'||x.signal==='ACCUMULATE').slice(0,3),[funds]);
  const visibleIndices=useMemo(()=>indices.filter(x=>(indexFilter==='ALL'||x.group===indexFilter)&&x.name.toLowerCase().includes(indexSearch.toLowerCase())),[indices,indexFilter,indexSearch]);
  const groups=[['BROAD','Broad Market'],['SECTORAL','Sectoral'],['THEMATIC','Thematic']] as const;
+ const p=istParts();
+ const threePmLive=inThreePmWindow(p);
+ const threePmDate=threePmSnapshot?.date||'—';
+
  return <main>
   <header className="hero"><div><div className="eyebrow"><span className="live-dot"/> AKASH • PREMIUM INVESTMENT TERMINAL</div><h1>AKASH MUTUAL FUNDS</h1><p>19-fund opportunity intelligence • comprehensive NIFTY market map • live market pulse</p></div><div className="hero-actions"><div className="last-sync"><Clock3 size={14}/>{updated?new Date(updated).toLocaleString('en-IN'):'Syncing market…'}</div><button onClick={load} disabled={loading} className="refresh"><RefreshCw size={17} className={loading?'spin':''}/>{loading?'Syncing…':'Refresh Now'}</button></div></header>
   <div className="ticker">{indices.slice(0,8).map(x=><div key={x.name} className="ticker-item"><span>{x.name.replace('NIFTY ','')}</span><b className={cls(x.change)}>{pct(x.change)}</b></div>)}</div>
   {error&&<div className="error">{error}</div>}
+
+  <section className="cutoff-panel">
+   <div className="cutoff-main"><div className="cutoff-icon"><TimerReset size={20}/></div><div><span className="section-kicker">3 PM NAV CUT-OFF ENGINE</span><h2>3 PM Purchase Snapshot</h2><p>Uses the live mapped index move at the 3 PM window to estimate the same-day closing NAV opportunity. It is an estimate — the official NAV is published after market close.</p></div></div>
+   <div className="cutoff-status"><b className={threePmLive?'positive':''}>{threePmLive?'3 PM WINDOW LIVE':'3 PM SNAPSHOT'}</b><span>{threePmLive?'Capturing every 30 seconds':'Last captured: '+threePmDate}</span></div>
+  </section>
+
   <section className="stats"><div className="stat"><span>Tracked Funds</span><b>{summary?.trackedFunds??19}</b><small>{summary?.liveFunds??0} NAV feeds live</small></div><div className="stat"><span>BUY Signals</span><b className="positive">{summary?.buySignals??0}</b><small>{summary?.accumulateSignals??0} accumulate setups</small></div><div className="stat"><span>Falling Indices</span><b className="negative">{summary?.fallingIndices??0}</b><small>Across monitored NIFTY universe</small></div><div className="stat"><span>Index Engine</span><b className="positive">{loading?'SYNCING':'LIVE'}</b><small>{summary?.liveIndices??0}/{indices.length||0} indices live</small></div></section>
 
   <section className="panel index-monitor"><div className="panelhead"><div><span className="section-kicker">NIFTY INDEX MONITOR</span><h2>Complete Market Map</h2></div><BarChart3 size={19}/></div><div className="index-tools"><div className="index-tabs"><button className={indexFilter==='ALL'?'active':''} onClick={()=>setIndexFilter('ALL')}>ALL <em>{indices.length}</em></button>{groups.map(([key,label])=><button key={key} className={indexFilter===key?'active':''} onClick={()=>setIndexFilter(key)}>{label} <em>{indices.filter(x=>x.group===key).length}</em></button>)}</div><label className="searchbox"><Search size={15}/><input value={indexSearch} onChange={e=>setIndexSearch(e.target.value)} placeholder="Search Nifty index…"/></label></div><div className="index-grid">{visibleIndices.map(x=><div className={`index-card ${x.change!=null&&x.change<0?'down':''}`} key={x.name}><div className="index-card-top"><span>{x.group}</span><b className={cls(x.change)}>{pct(x.change)}</b></div><strong>{x.name}</strong><small>{x.value!=null?x.value.toLocaleString('en-IN',{maximumFractionDigits:2}):'Feed unavailable'}</small></div>)}</div></section>
@@ -29,7 +90,8 @@ export default function Home(){
 
   <section className="analysis-grid"><div className="panel"><div className="panelhead"><div><span className="section-kicker">SECTOR HEATMAP</span><h2>Where the market is weak</h2></div><TrendingDown size={19}/></div><div className="heatmap">{sectors.map(s=><div key={s.name} className={`heat ${s.change!=null&&s.change<0?'down':'up'}`}><span>{s.name.replace('NIFTY ','')}</span><b>{pct(s.change)}</b></div>)}</div></div><div className="panel decision"><div className="panelhead"><div><span className="section-kicker">DECISION DESK</span><h2>Today's Action Plan</h2></div><Target size={19}/></div>{best.length?best.map(f=><div className="decision-row" key={f.code}><div><strong>{f.name}</strong><small>{f.signal} • score {f.score} • {f.reason}{f.change!=null?` • NAV ${pct(f.change)}`:''}</small></div><span className={`badge ${f.signal.toLowerCase()}`}>{f.signal}</span></div>):<div className="empty"><ShieldCheck size={22}/><strong>No BUY / ACCUMULATE setup</strong><span>Wait for a stronger correction plus sector confirmation.</span></div>}<div className="rule">Score combines sector weakness, fund NAV correction, relative correction versus the mapped index, index confirmation and fund-category quality. It is a rule-based analytical estimate, not a guaranteed return.</div></div></section>
 
-  <section className="panel tablepanel"><div className="panelhead"><div><span className="section-kicker">PORTFOLIO UNIVERSE</span><h2>All 19 Funds</h2></div><small>Ranked by opportunity score</small></div><div className="tablewrap"><table><thead><tr><th>Fund</th><th>Theme</th><th>NAV</th><th>NAV Δ</th><th>Sector Signal</th><th>Score</th><th>Action</th></tr></thead><tbody>{funds.map(f=><tr key={f.code}><td><strong>{f.name}</strong><small>{f.code} • NAV date {f.date||'—'}</small></td><td>{f.category}</td><td>{money(f.nav)}</td><td className={cls(f.change)}>{pct(f.change)}</td><td><span className={f.leadMove!=null&&f.leadMove<0?'sector-risk':'sector-ok'}>{f.leadSector.replace('NIFTY ','')} {pct(f.leadMove)}</span><small>{f.relativeCorrection!=null?`Relative ${pct(f.relativeCorrection)}`:'No relative feed'}</small></td><td><div className="score-cell"><div className="bar"><i style={{width:`${f.score}%`}}/></div><b>{f.score}</b></div></td><td><span className={`badge ${f.signal.toLowerCase()}`}>{f.signal}</span></td></tr>)}</tbody></table></div></section>
-  <footer><b>AKASH MUTUAL FUNDS</b> • Data: AMFI NAVAll + MFAPI history + NSE All Indices with Yahoo fallback • 50-index equity map • NAV is end-of-day; index movement is used for opportunity analysis.</footer>
+  <section className="panel tablepanel"><div className="panelhead"><div><span className="section-kicker">PORTFOLIO UNIVERSE</span><h2>All 19 Funds</h2></div><small>Ranked by opportunity score</small></div><div className="tablewrap"><table><thead><tr><th>Fund</th><th>Theme</th><th>NAV</th><th>3 PM NAV EST.</th><th>3 PM Δ</th><th>Sector Signal</th><th>Score</th><th>Action</th></tr></thead><tbody>{funds.map(f=>{const est=estimateThreePm(f,threePmSnapshot);return <tr key={f.code}><td><strong>{f.name}</strong><small>{f.code} • NAV date {f.date||'—'}</small></td><td>{f.category}</td><td>{money(f.nav)}</td><td><strong className={cls(est.change)}>{money(est.nav)}</strong><small>{est.move!=null?`Basis: mapped indices ${pct(est.move)}`:'No mapped estimate'}</small></td><td className={cls(est.change)}>{pct(est.change)}</td><td><span className={f.leadMove!=null&&f.leadMove<0?'sector-risk':'sector-ok'}>{f.leadSector.replace('NIFTY ','')} {pct(f.leadMove)}</span><small>{f.relativeCorrection!=null?`Relative ${pct(f.relativeCorrection)}`:'No relative feed'}</small></td><td><div className="score-cell"><div className="bar"><i style={{width:`${f.score}%`}}/></div><b>{f.score}</b></div></td><td><span className={`badge ${f.signal.toLowerCase()}`}>{f.signal}</span></td></tr>})}</tbody></table></div></section>
+
+  <footer><b>AKASH MUTUAL FUNDS</b> • Data: AMFI NAVAll + MFAPI history + NSE All Indices with Yahoo fallback • 50-index equity map • 3 PM NAV is an estimate based on live mapped-index movement; official NAV remains end-of-day.</footer>
  </main>
 }
