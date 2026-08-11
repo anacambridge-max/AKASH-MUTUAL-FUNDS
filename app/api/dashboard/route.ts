@@ -21,9 +21,9 @@ const funds:FundConfig[]=[
  ['147946','Bandhan Small Cap Fund Direct Growth','Small Cap',['NIFTY SMALLCAP 50','NIFTY SMALLCAP 100','NIFTY SMALLCAP 250','NIFTY MIDSMALLCAP 400']],
  ['118989','HDFC Mid Cap Opportunities Fund Direct Growth','Mid Cap',['NIFTY MIDCAP 50','NIFTY MIDCAP 100','NIFTY MIDCAP 150','NIFTY NEXT 50']],
  ['143341','UTI Nifty Next 50 Index Fund Direct Growth','Nifty Next 50',['NIFTY NEXT 50']],
- ['150714','UTI Gold ETF FoF Direct Growth','Gold',['NIFTY 50','NIFTY COMMODITIES']],
+ ['150714','UTI Gold ETF FoF Direct Growth','Gold',['NIFTY COMMODITIES']],
  ['125497','SBI Small Cap Fund Direct Growth','Small Cap',['NIFTY SMALLCAP 50','NIFTY SMALLCAP 100','NIFTY SMALLCAP 250','NIFTY MIDSMALLCAP 400']],
- ['120586','ICICI Prudential Value Discovery Fund Direct Growth','Value',['NIFTY 50','NIFTY FINANCIAL SERVICES','NIFTY PRIVATE BANK','NIFTY REALTY']],
+ ['120586','ICICI Prudential Value Discovery Fund Direct Growth','Value',['NIFTY 50','NIFTY FINANCIAL SERVICES','NIFTY PRIVATE BANK','NIFTY REALTY','NIFTY REITS & REALTY']],
  ['120503','Axis ELSS Tax Saver Fund Direct Growth','ELSS',['NIFTY 50']],
  ['144835','Sundaram Services Fund Direct Growth','Services',['NIFTY SERVICES SECTOR','NIFTY CONSUMER SERVICES','NIFTY COMMERCIAL & TRANSPORT SERVICES']],
  ['135800','Tata Digital India Fund Direct Growth','Technology',['NIFTY IT','NIFTY MIDSMALL IT & TELECOM','NIFTY TELECOMMUNICATIONS']]
@@ -36,10 +36,41 @@ const indexNames:{name:string;group:IndexSnapshot['group']}[]=[
 ];
 
 const aliases:Record<string,string[]>= {
- 'NIFTY NEXT 50':['NIFTY NEXT 50','NIFTY NEXT 50 TRI'],'NIFTY MIDSMALLCAP 400':['NIFTY MIDSMALLCAP 400','NIFTY MIDSMALLCAP400'],'NIFTY FINANCIAL SERVICES 25/50':['NIFTY FINANCIAL SERVICES 25/50','NIFTY FINSRV25 50','NIFTY FINSRV25 50 Index'],'NIFTY FINANCIAL SERVICES EX-BANK':['NIFTY FINANCIAL SERVICES EX-BANK','NIFTY FINANCIAL SERVICES EX BANK'],'NIFTY OIL & GAS':['NIFTY OIL & GAS','NIFTY OIL AND GAS','NIFTY OIL AND GAS INDEX'],'NIFTY CONSUMER DURABLES':['NIFTY CONSUMER DURABLES','NIFTY CONSUMER DURABLE'],'NIFTY TELECOMMUNICATIONS':['NIFTY TELECOMMUNICATIONS','NIFTY TELECOM'],'NIFTY SMALLCAP 250':['NIFTY SMALLCAP 250','NIFTY SMALL CAP 250'],'NIFTY REITS & REALTY':['NIFTY REITS & REALTY','NIFTY REITs & Realty'],'NIFTY500 HEALTHCARE':['NIFTY500 HEALTHCARE','NIFTY500 Healthcare'],'NIFTY MIDSMALL FINANCIAL SERVICES':['NIFTY MIDSMALL FINANCIAL SERVICES','NIFTY MIDSMALL FINANCIAL SERVICES INDEX'],'NIFTY MIDSMALL HEALTHCARE':['NIFTY MIDSMALL HEALTHCARE','NIFTY MIDSMALL HEALTHCARE INDEX'],'NIFTY MIDSMALL IT & TELECOM':['NIFTY MIDSMALL IT & TELECOM','NIFTY MIDSMALL IT & TELECOM INDEX'],'NIFTY COMMERCIAL & TRANSPORT SERVICES':['NIFTY COMMERCIAL & TRANSPORT SERVICES','NIFTY COMMERCIAL AND TRANSPORT SERVICES'],'NIFTY INFRASTRUCTURE':['NIFTY INFRASTRUCTURE','NIFTY INFRA'],'NIFTY SERVICES SECTOR':['NIFTY SERVICES SECTOR','NIFTY SERVICES']
+ 'NIFTY NEXT 50':['NIFTY NEXT 50','NIFTY NEXT 50 TRI'],
+ 'NIFTY MIDSMALLCAP 400':['NIFTY MIDSMALLCAP 400','NIFTY MIDSMALLCAP400','NIFTY MIDSMALLCAP 400 TRI'],
+ 'NIFTY FINANCIAL SERVICES 25/50':['NIFTY FINANCIAL SERVICES 25/50','NIFTY FINSRV25 50','NIFTY FINSRV25 50 INDEX'],
+ 'NIFTY FINANCIAL SERVICES EX-BANK':['NIFTY FINANCIAL SERVICES EX-BANK','NIFTY FINANCIAL SERVICES EX BANK'],
+ 'NIFTY OIL & GAS':['NIFTY OIL & GAS','NIFTY OIL AND GAS','NIFTY OIL AND GAS INDEX'],
+ 'NIFTY CONSUMER DURABLES':['NIFTY CONSUMER DURABLES','NIFTY CONSUMER DURABLE'],
+ 'NIFTY TELECOMMUNICATIONS':['NIFTY TELECOMMUNICATIONS','NIFTY TELECOM'],
+ 'NIFTY SMALLCAP 250':['NIFTY SMALLCAP 250','NIFTY SMALL CAP 250'],
+ 'NIFTY REITS & REALTY':['NIFTY REITS & REALTY','NIFTY REITS & REALTY INDEX'],
+ 'NIFTY500 HEALTHCARE':['NIFTY500 HEALTHCARE','NIFTY500 HEALTHCARE INDEX'],
+ 'NIFTY MIDSMALL FINANCIAL SERVICES':['NIFTY MIDSMALL FINANCIAL SERVICES','NIFTY MIDSMALL FINANCIAL SERVICES INDEX'],
+ 'NIFTY MIDSMALL HEALTHCARE':['NIFTY MIDSMALL HEALTHCARE','NIFTY MIDSMALL HEALTHCARE INDEX'],
+ 'NIFTY MIDSMALL IT & TELECOM':['NIFTY MIDSMALL IT & TELECOM','NIFTY MIDSMALL IT & TELECOM INDEX'],
+ 'NIFTY COMMERCIAL & TRANSPORT SERVICES':['NIFTY COMMERCIAL & TRANSPORT SERVICES','NIFTY COMMERCIAL AND TRANSPORT SERVICES'],
+ 'NIFTY INFRASTRUCTURE':['NIFTY INFRASTRUCTURE','NIFTY INFRASTRUCTURE INDEX','NIFTY INFRA'],
+ 'NIFTY SERVICES SECTOR':['NIFTY SERVICES SECTOR','NIFTY SERVICES SECTOR INDEX','NIFTY SERVICES'],
+ 'NIFTY CAPITAL GOODS':['NIFTY CAPITAL GOODS','NIFTY CAPITAL GOODS INDEX'],
+ 'NIFTY CONSTRUCTION':['NIFTY CONSTRUCTION','NIFTY CONSTRUCTION INDEX'],
+ 'NIFTY CONSUMER SERVICES':['NIFTY CONSUMER SERVICES','NIFTY CONSUMER SERVICES INDEX'],
+ 'NIFTY COMMERCIAL & TRANSPORT SERVICES':['NIFTY COMMERCIAL & TRANSPORT SERVICES','NIFTY COMMERCIAL AND TRANSPORT SERVICES','NIFTY COMMERCIAL & TRANSPORT SERVICES INDEX'],
+ 'NIFTY HOSPITALS':['NIFTY HOSPITALS','NIFTY HOSPITALS INDEX'],
+ 'NIFTY HOUSING FINANCE':['NIFTY HOUSING FINANCE','NIFTY HOUSING FINANCE INDEX'],
+ 'NIFTY INSURANCE':['NIFTY INSURANCE','NIFTY INSURANCE INDEX'],
+ 'NIFTY NBFC':['NIFTY NBFC','NIFTY NBFC INDEX'],
+ 'NIFTY POWER':['NIFTY POWER','NIFTY POWER INDEX'],
+ 'NIFTY RETAIL':['NIFTY RETAIL','NIFTY RETAIL INDEX']
 };
 
-const yahooSymbols:Record<string,string>={'NIFTY 50':'^NSEI','NIFTY NEXT 50':'^NSMIDCP','NIFTY 100':'^CNX100','NIFTY 200':'^CNX200','NIFTY 500':'^CRSLDX','NIFTY MIDCAP 50':'^NSEMDCP50','NIFTY MIDCAP 100':'^CNXMDCP','NIFTY BANK':'^NSEBANK','NIFTY FINANCIAL SERVICES':'^NSEFIN','NIFTY IT':'^CNXIT','NIFTY PHARMA':'^CNXPHARMA','NIFTY AUTO':'^CNXAUTO','NIFTY FMCG':'^CNXFMCG','NIFTY METAL':'^CNXMETAL','NIFTY MEDIA':'^CNXMEDIA','NIFTY REALTY':'^CNXREALTY','NIFTY PSU BANK':'^CNXPSUBANK','NIFTY INFRASTRUCTURE':'^CNXINFRA','NIFTY CEMENT':'^CNXCEMENT','NIFTY ENERGY':'^CNXENERGY'};
+const yahooSymbols:Record<string,string>={
+ 'NIFTY 50':'^NSEI','NIFTY NEXT 50':'^NSMIDCP','NIFTY 100':'^CNX100','NIFTY 200':'^CNX200','NIFTY 500':'^CRSLDX',
+ 'NIFTY MIDCAP 50':'^NSEMDCP50','NIFTY MIDCAP 100':'^CNXMDCP','NIFTY BANK':'^NSEBANK','NIFTY FINANCIAL SERVICES':'^NSEFIN',
+ 'NIFTY IT':'^CNXIT','NIFTY PHARMA':'^CNXPHARMA','NIFTY AUTO':'^CNXAUTO','NIFTY FMCG':'^CNXFMCG','NIFTY METAL':'^CNXMETAL',
+ 'NIFTY MEDIA':'^CNXMEDIA','NIFTY REALTY':'^CNXREALTY','NIFTY PSU BANK':'^CNXPSUBANK','NIFTY INFRASTRUCTURE':'^CNXINFRA',
+ 'NIFTY CEMENT':'^CNXCEMENT','NIFTY ENERGY':'^CNXENERGY'
+};
 
 const headers={'User-Agent':'Mozilla/5.0 (compatible; AkashMutualFunds/1.0)','Accept':'application/json,text/plain,*/*'};
 async function json(url:string,extra:Record<string,string>={},cache:'no-store'|'force-cache'='no-store'){const r=await fetch(url,{cache,headers:{...headers,...extra}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
@@ -59,17 +90,59 @@ async function yahooIndex(name:string,group:IndexSnapshot['group']):Promise<Inde
 async function mapLimit<T,R>(items:T[],limit:number,fn:(item:T)=>Promise<R>):Promise<R[]>{const out:R[]=new Array(items.length);let cursor=0;const worker=async()=>{while(true){const i=cursor++;if(i>=items.length)return;out[i]=await fn(items[i]);}};await Promise.all(Array.from({length:Math.min(limit,items.length)},()=>worker()));return out;}
 
 const qualityByCategory:Record<string,number>={'Diversified':7,'Large & Mid Cap':6,'Multi Asset':6,'Value':5,'Focused Equity':4,'Nifty 50':3,'ELSS':3,'Mid Cap':2,'Small Cap':1,'Infrastructure':3,'Banking & Financial':3,'Healthcare':3,'Technology':3,'Services':2,'Gold':2,'Children':1,'Multi Cap':3,'Nifty Next 50':3};
+const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
+const norm=(s:string)=>s.toUpperCase().replace(/&/g,' AND ').replace(/[^A-Z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+
+function readNseRow(target:string,rows:any[]):{value:number;change:number}|null{
+ const targetNames=[target,...(aliases[target]||[])].map(norm);
+ const candidates=rows.filter(r=>typeof r?.index==='string');
+ let row=candidates.find(r=>targetNames.includes(norm(r.index)));
+ if(!row){row=candidates.find(r=>targetNames.some(a=>{const b=norm(r.index);return b===a||b===`${a} INDEX`||a===`${b} INDEX`;}));}
+ if(!row){row=candidates.find(r=>targetNames.some(a=>{const b=norm(r.index);return a.length>=12&&(b.includes(a)||a.includes(b));}));}
+ const value=Number(row?.last),change=Number(row?.percentChange);
+ return row&&Number.isFinite(value)&&Number.isFinite(change)?{value,change}:null;
+}
+
+async function resolveIndex(item:{name:string;group:IndexSnapshot['group']},rows:any[]):Promise<IndexSnapshot>{
+ const nse=readNseRow(item.name,rows);
+ if(nse)return{name:item.name,value:nse.value,change:nse.change,status:'LIVE',group:item.group};
+ return yahooIndex(item.name,item.group);
+}
 
 export async function GET(){
- const [amfi,nseRows]=await Promise.all([fetchAmfiNavs(),getAllNseIndices()]);
- const fundData=await mapLimit(funds,4,async([code,name,category,sectors])=>({code,name,category,sectors,data:await fund(code,amfi)}));
- const nseMap=new Map<string,any>();for(const row of nseRows){const key=String(row.index||'').trim().toUpperCase();if(key)nseMap.set(key,row);}
- const preliminary=indexNames.map(({name,group})=>{const candidates=[name,...(aliases[name]||[])];const row=candidates.map(x=>nseMap.get(x)).find(Boolean);if(row&&Number.isFinite(Number(row.last)))return Promise.resolve<IndexSnapshot>({name,value:Number(row.last),change:Number(row.percentChange)||0,status:'LIVE',group});return yahooIndex(name,group);});
- const indexData=await Promise.all(preliminary);
- const indexMap=new Map(indexData.map(x=>[x.name,x]));
- const enriched=fundData.map(f=>{const liveMoves=f.sectors.map(s=>indexMap.get(s)?.change).filter((x):x is number=>typeof x==='number');const sectorMove=liveMoves.length?liveMoves.reduce((a,b)=>a+b,0)/liveMoves.length:null;const lead=f.sectors.map(s=>({name:s,move:indexMap.get(s)?.change??null})).filter(x=>x.move!=null).sort((a,b)=>(a.move??0)-(b.move??0))[0]||{name:f.sectors[0]||'Market',move:null};const navChange=f.data.change;const correction=Math.max(0,-(navChange??0));const weakness=Math.max(0,-(sectorMove??0));const relative=navChange!=null&&sectorMove!=null?navChange-sectorMove:null;const relativeAdvantage=relative!=null?Math.max(-2,Math.min(2,relative)):0;const confirmation=(lead.move!=null&&lead.move<=-0.75?4:lead.move!=null&&lead.move<0?2:0);const depth=(weakness>=1.5?8:weakness>=1?5:weakness>=0.5?3:0);const score=Math.max(0,Math.min(100,48+depth+correction*10+relativeAdvantage*4+confirmation+(qualityByCategory[f.category]||2)));const signal=score>=78&&weakness>=0.75?'BUY':score>=65&&weakness>=0.35?'ACCUMULATE':score>=52?'WATCH':'WAIT';const reason=lead.move==null?'No mapped live index feed':`${lead.name.replace('NIFTY ','')} ${lead.move>=0?'+':''}${lead.move.toFixed(2)}%`;return{code:f.code,name:f.name,category:f.category,sectors:f.sectors,nav:f.data.nav,previousNav:f.data.previousNav,change:f.data.change,date:f.data.date,status:f.data.status,navSource:f.data.source,sectorMove:sectorMove==null?null:Number(sectorMove.toFixed(2)),leadSector:lead.name,leadMove:lead.move==null?null:Number(lead.move.toFixed(2)),relativeCorrection:relative==null?null:Number(relative.toFixed(2)),score:Number(score.toFixed(1)),signal,reason};}).sort((a,b)=>b.score-a.score);
- const falling=indexData.filter(x=>(x.change??0)<0).sort((a,b)=>(a.change??0)-(b.change??0));
- const sectors=indexData.filter(x=>x.group!=='BROAD').map(x=>({name:x.name,value:x.value,change:x.change,status:x.status,severity:(x.change??0)<=-1.5?'HIGH':(x.change??0)<0?'MEDIUM':'STABLE'}));
- const liveFunds=enriched.filter(x=>x.status==='LIVE').length,liveIndices=indexData.filter(x=>x.status==='LIVE').length;const actionable=enriched.filter(x=>x.signal==='BUY'||x.signal==='ACCUMULATE');
- return NextResponse.json({updatedAt:new Date().toISOString(),funds:enriched,indices:indexData,sectors,summary:{trackedFunds:funds.length,liveFunds,liveIndices,fallingIndices:falling.length,buySignals:enriched.filter(x=>x.signal==='BUY').length,accumulateSignals:enriched.filter(x=>x.signal==='ACCUMULATE').length},fallingIndices:falling.slice(0,10),actionable:actionable.slice(0,5),source:'AMFI NAVAll + MFAPI history + NSE All Indices with cookie-backed Yahoo fallback',note:'NAV is end-of-day. Index movement is used as an opportunity signal; BUY/ACCUMULATE are rule-based analytical signals, not guaranteed returns.'},{headers:{'Cache-Control':'no-store,max-age=0'}});
+ try{
+  const [amfi,nseRows]=await Promise.all([fetchAmfiNavs(),getAllNseIndices()]);
+  const indices=await mapLimit(indexNames,8,x=>resolveIndex(x,nseRows));
+  const indexMap=new Map(indices.map(x=>[x.name,x]));
+  const fundData=await mapLimit(funds,5,async([code,name,category,sectors])=>{
+   const snap=await fund(code,amfi);
+   const mapped=sectors.map(s=>indexMap.get(s)).filter((x):x is IndexSnapshot=>!!x&&x.change!=null);
+   const lead=mapped.length?mapped.slice().sort((a,b)=>(a.change??0)-(b.change??0))[0]:null;
+   const sectorMove=lead?.change??null;
+   const fundChange=snap.change;
+   const relativeCorrection=fundChange!=null&&sectorMove!=null?fundChange-sectorMove:null;
+   const quality=qualityByCategory[category]??2;
+   const sectorWeakness=sectorMove!=null?clamp(-sectorMove*10,0,30):0;
+   const fundCorrection=fundChange!=null?clamp(-fundChange*20,0,25):0;
+   const relativeBonus=(fundChange!=null&&fundChange<0&&relativeCorrection!=null)?clamp(relativeCorrection*10,0,18):0;
+   const correctionBonus=fundChange!=null&&fundChange<=-0.5?6:fundChange!=null&&fundChange<0?3:0;
+   const positivePenalty=fundChange!=null&&fundChange>0?Math.min(18,fundChange*8):0;
+   const score=Math.round(clamp(30+sectorWeakness+fundCorrection+relativeBonus+correctionBonus+quality-positivePenalty,0,100)*10)/10;
+   const confirmed=sectorMove!=null&&sectorMove<=-0.8&&fundChange!=null&&fundChange<0&&relativeCorrection!=null&&relativeCorrection>0.2;
+   const strong=sectorMove!=null&&sectorMove<=-1.2&&fundChange!=null&&fundChange<=-0.6&&relativeCorrection!=null&&relativeCorrection>0.3;
+   const signal=strong&&score>=72?'BUY':confirmed&&score>=62?'ACCUMULATE':score>=50?'WATCH':'WAIT';
+   const reason=lead?`${lead.name} ${lead.change!>=0?'+':''}${lead.change!.toFixed(2)}%`:'No mapped index feed';
+   return{code,name,category,nav:snap.nav,previousNav:snap.previousNav,change:fundChange,date:snap.date,status:snap.status,sectorMove,leadSector:lead?.name??'No mapped index',leadMove:sectorMove,relativeCorrection,score,signal,reason};
+  });
+  fundData.sort((a,b)=>b.score-a.score);
+  const sectors=indices.filter(x=>x.group==='SECTORAL'||x.group==='THEMATIC').map(x=>({name:x.name,value:x.value,change:x.change,status:x.status,severity:x.change==null?'NONE':x.change<=-1?'HIGH':x.change<0?'MEDIUM':'LOW'}));
+  const liveFunds=fundData.filter(x=>x.status==='LIVE').length;
+  const liveIndices=indices.filter(x=>x.status==='LIVE').length;
+  const fallingIndices=indices.filter(x=>x.change!=null&&x.change<0).length;
+  const buySignals=fundData.filter(x=>x.signal==='BUY').length;
+  const accumulateSignals=fundData.filter(x=>x.signal==='ACCUMULATE').length;
+  return NextResponse.json({funds:fundData,indices,sectors,summary:{trackedFunds:funds.length,liveFunds,liveIndices,fallingIndices,buySignals,accumulateSignals},updatedAt:new Date().toISOString()},{headers:{'Cache-Control':'no-store, max-age=0'}});
+ }catch(error){
+  return NextResponse.json({error:error instanceof Error?error.message:'Dashboard feed error'},{status:500,headers:{'Cache-Control':'no-store'}});
+ }
 }
