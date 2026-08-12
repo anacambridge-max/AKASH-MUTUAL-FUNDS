@@ -73,8 +73,8 @@ async function analytics(history:Point[],nav:number|null,mappedNames:string[],in
  const cheapness=expectedMove!=null&&expectedMove<0?Math.min(100,percentile(Math.abs(expectedMove),negative)*1.05):0;
  const last60=history.slice(-60).map(x=>x.value);const peak=Math.max(...last60,nav??0);const dd=nav!=null&&peak>0?Math.max(0,(peak-nav)/peak*100):0;
  const recent=Array.from(fr.values()).slice(-60),mean=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0;const vol=recent.length?Math.sqrt(252)*Math.sqrt(recent.reduce((a,x)=>a+(x-mean)**2,0)/recent.length):null;
- const fundArr:number[]=[],basketArr:number[]=[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();for(const m of returnMaps)for(const d of Array.from(m.keys()))allDates.add(d);
- for(const d of Array.from(allDates)){const fv=fr.get(d);if(fv==null)continue;const vals=returnMaps.map(m=>m.get(d)).filter((x):x is number=>x!=null);if(vals.length){fundArr.push(fv);basketArr.push(vals.reduce((a,b)=>a+b,0)/vals.length);}}
+ const fundArr:number[]=[],basketArr:number[]=[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();for(const m of returnMaps)for(const d of m.keys())allDates.add(d);
+ for(const d of allDates){const fv=fr.get(d);if(fv==null)continue;const vals=returnMaps.map(m=>m.get(d)).filter((x):x is number=>x!=null);if(vals.length){fundArr.push(fv);basketArr.push(vals.reduce((a,b)=>a+b,0)/vals.length);}}
  const b=beta(fundArr,basketArr);return{beta:b,volatility:vol,drawdown:dd,cheapness,historyCoverage:Math.min(100,history.length/500*100),basketSensitivity:b,estimatedChange:null};
 }
 
@@ -83,18 +83,41 @@ export async function GET(){
   const [amfiMap,nse]=await Promise.all([amfi(),nseRows()]);
   const indices:IndexRow[]=await Promise.all(indexNames.map(async([name,group])=>{const n=findIndex(name,nse);if(n)return{name,value:n.value,change:n.change,status:'LIVE',group,source:'NSE'};const q=yahoo[name]?await yahooQuote(yahoo[name]):null;return{name,value:q?.value??null,change:q?.change??null,status:q?'LIVE':'UNAVAILABLE',group,source:q?'YAHOO':'UNAVAILABLE'};}));
   const map=new Map(indices.map(x=>[x.name,x]));
-  const needed=Array.from(new Set(funds.flatMap(x=>x[3]).filter(n=>Boolean(yahoo[n]))));
+  const needed=[...new Set(funds.flatMap(x=>x[3]).filter(n=>Boolean(yahoo[n])))];
   const indexHistories=new Map<string,Point[]>((await Promise.all(needed.map(async n=>[n,await yahooHistory(yahoo[n])] as [string,Point[]]))).filter(([,h])=>h.length>30));
   const histories=await Promise.all(funds.map(async([code])=>[code,await fundHistory(code)] as [string,Point[]]));
   const histMap=new Map(histories);
   const output=await Promise.all(funds.map(async([code,name,category,mappedNames])=>{
    const h=histMap.get(code)??[];const a=amfiMap.get(code);const nav=a?.nav??h.at(-1)?.value??null;const prev=h.at(-2)?.value??null;const change=a&&prev?((a.nav-prev)/prev)*100:(h.length>1?((h.at(-1)!.value-h.at(-2)!.value)/h.at(-2)!.value)*100:null);
-   const live=mappedNames.map(n=>map.get(n)).filter((x):x is IndexRow=>Boolean(x&&x.status==='LIVE'&&x.change!=null));const move=live.length?live.reduce((s,x)=>s+(x.change??0),0)/live.length: null;const falling=live.filter(x=>(x.change??0)<0).length;const confirmation=live.length?falling/live.length:0;const lead=live.length?live.reduce((best,x)=>(x.change??0)<(best.change??0)?x:best):null;
+   const live=mappedNames.map(n=>map.get(n)).filter((x):x is IndexRow=>Boolean(x&&x.status==='LIVE'&&x.change!=null));const move=live.length?live.reduce((s,x)=>s+(x.change??0),0)/live.length:null;const falling=live.filter(x=>(x.change??0)<0).length;const confirmation=live.length?falling/live.length:0;const lead=live.length?live.reduce((best,x)=>(x.change??0)<(best.change??0)?x:best):null;
    const provisional=await analytics(h,nav,mappedNames,indexHistories,null);const expectedMove=move!=null&&provisional.beta!=null?move*provisional.beta:null;const an=await analytics(h,nav,mappedNames,indexHistories,expectedMove);const relative=expectedMove!=null&&move!=null?expectedMove-move:null;
-   const sectorScore=move==null?0:Math.max(0,Math.min(100,-move*35));const relativeScore=relative==null?0:Math.max(0,Math.min(100,-relative*55));const confirmationScore=confirmation*100;const qualityScore=quality[category]??75;const historyScore=an.cheapness;
+
+   // The opportunity engine is intentionally driven by the strongest relevant sector correction.
+   // A missing secondary proxy feed reduces confidence, but must not erase a real sector dip.
+   // This prevents a -1.54% IT correction from being diluted by unavailable IT/telecom feeds.
+   const primarySectorScore=lead&&lead.change<0?Math.min(100,Math.abs(lead.change)*45):0;
+   const basketSectorScore=move!=null&&move<0?Math.min(100,Math.abs(move)*35):0;
+   const sectorScore=Math.max(primarySectorScore,basketSectorScore);
+   const relativeScore=relative!=null&&relative<0?Math.min(100,Math.abs(relative)*55):0;
+   const confirmationScore=confirmation*100;
+   const qualityScore=quality[category]??75;
+   const historyScore=an.cheapness;
    const dataConfidence=Math.round((live.length/Math.max(1,mappedNames.length)*60)+(an.historyCoverage*.20)+(an.beta!=null?20:0));
-   const rawScore=sectorScore*.30+relativeScore*.20+confirmationScore*.15+historyScore*.20+qualityScore*.15;const risk=Math.max(0,Math.min(100,(an.volatility??0)*5+(an.drawdown??0)*2));const score=Math.max(0,Math.min(100,rawScore*(.65+.35*dataConfidence/100)));const confidence=Math.max(0,Math.min(100,dataConfidence*.55+confirmationScore*.25+qualityScore*.20));
-   let signal='WAIT';if(score>=75&&confidence>=75&&risk<65&&confirmation>=.66&&historyScore>=55)signal='STRONG BUY';else if(score>=62&&confidence>=65&&risk<70&&confirmation>=.5&&historyScore>=35)signal='BUY';else if(score>=48&&confidence>=55&&confirmation>=.5)signal='ACCUMULATE';else if(score>=35)signal='WATCH';
+
+   // Weighting: strongest sector correction 55%, relative weakness 15%,
+   // confirmation 10%, historical cheapness 10%, fund quality 10%.
+   // Data confidence is a modifier, not a ranking killer.
+   const rawScore=sectorScore*.55+relativeScore*.15+confirmationScore*.10+historyScore*.10+qualityScore*.10;
+   const risk=Math.max(0,Math.min(100,(an.volatility??0)*5+(an.drawdown??0)*2));
+   const score=Math.max(0,Math.min(100,rawScore*(.75+.25*dataConfidence/100)));
+   const confidence=Math.max(0,Math.min(100,dataConfidence*.55+confirmationScore*.25+qualityScore*.20));
+
+   let signal='WAIT';
+   if(score>=75&&confidence>=75&&risk<65&&historyScore>=55&&confirmation>=.33)signal='STRONG BUY';
+   else if(score>=60&&confidence>=60&&risk<70&&confirmation>=.33)signal='BUY';
+   else if(score>=42&&confidence>=45&&confirmation>=.33)signal='ACCUMULATE';
+   else if(score>=30)signal='WATCH';
+
    const base=prev??(nav!=null&&change!=null?nav/(1+change/100):null);const estimatedChange=expectedMove;const estimatedNav=base!=null&&estimatedChange!=null?base*(1+estimatedChange/100):null;
    return{code,name,category,nav,previousNav:prev,change,date:a?.date??h.at(-1)?.date??null,status:nav!=null?'LIVE':'UNAVAILABLE',sectorMove:move,leadSector:lead?.name??'NO LIVE MAPPED INDEX',leadMove:lead?.change??null,relativeCorrection:relative,confirmation,mappedLive:live.length,mappedTotal:mappedNames.length,sectorScore:Number(sectorScore.toFixed(1)),relativeScore:Number(relativeScore.toFixed(1)),confirmationScore:Number(confirmationScore.toFixed(1)),qualityScore,score:Number(score.toFixed(1)),opportunityScore:Number(score.toFixed(1)),riskScore:Number(risk.toFixed(1)),confidenceScore:Number(confidence.toFixed(1)),signal,reason:lead?`${lead.name} ${(lead.change??0)>=0?'+':''}${(lead.change??0).toFixed(2)}% • ${live.length}/${mappedNames.length} proxy indexes live • expected NAV Δ ${estimatedChange==null?'—':estimatedChange.toFixed(2)+'%'}`:'Waiting for mapped proxy index data',historicalCheapness:Number(historyScore.toFixed(1)),volatility:an.volatility==null?null:Number(an.volatility.toFixed(1)),drawdown:an.drawdown==null?null:Number(an.drawdown.toFixed(1)),beta:an.beta==null?null:Number(an.beta.toFixed(2)),dataConfidence,estimatedNav,estimatedChange:estimatedChange==null?null:Number(estimatedChange.toFixed(2)),proxyBasket:true};
   }));
