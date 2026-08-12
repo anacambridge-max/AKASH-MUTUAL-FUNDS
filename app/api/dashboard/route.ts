@@ -91,7 +91,7 @@ export async function GET(){
    const h=histMap.get(code)??[];const a=amfiMap.get(code);const nav=a?.nav??h.at(-1)?.value??null;const prev=h.at(-2)?.value??null;const change=a&&prev?((a.nav-prev)/prev)*100:(h.length>1?((h.at(-1)!.value-h.at(-2)!.value)/h.at(-2)!.value)*100:null);
    const live=mappedNames.map(n=>map.get(n)).filter((x):x is IndexRow=>Boolean(x&&x.status==='LIVE'&&x.change!=null));const move=live.length?live.reduce((s,x)=>s+(x.change??0),0)/live.length:null;const falling=live.filter(x=>(x.change??0)<0).length;const confirmation=live.length?falling/live.length:0;const lead=live.length?live.reduce((best,x)=>(x.change??0)<(best.change??0)?x:best):null;
    const provisional=await analytics(h,nav,mappedNames,indexHistories,null);const expectedMove=move!=null&&provisional.beta!=null?move*provisional.beta:null;const an=await analytics(h,nav,mappedNames,indexHistories,expectedMove);const relative=expectedMove!=null&&move!=null?expectedMove-move:null;
-   const primarySectorScore=lead&&lead.change<0?Math.min(100,Math.abs(lead.change)*45):0;
+   const primarySectorScore=lead?.change!=null&&lead.change<0?Math.min(100,Math.abs(lead.change)*45):0;
    const basketSectorScore=move!=null&&move<0?Math.min(100,Math.abs(move)*35):0;
    const sectorScore=Math.max(primarySectorScore,basketSectorScore);
    const relativeScore=relative!=null&&relative<0?Math.min(100,Math.abs(relative)*55):0;
