@@ -69,12 +69,12 @@ async function yahooQuote(symbol:string){const h=await yahooHistory(symbol);cons
 function findIndex(target:string,rows:Array<Record<string,unknown>>){const names=[target,...(aliases[target]??[])].map(norm);const row=rows.find(x=>{const name=norm(String(x.index??x.indexName??x.name??''));return names.some(n=>name===n||name===`${n} INDEX`||n===`${name} INDEX`||(n.length>8&&(name.includes(n)||n.includes(name))));});if(!row)return null;const value=Number(row.last??row.indexValue??row.value),change=Number(row.percentChange??row.percChange??row.changePercent??row.change);return Number.isFinite(value)&&Number.isFinite(change)?{value,change}:null;}
 
 async function analytics(history:Point[],nav:number|null,mappedNames:string[],indexHistories:Map<string,Point[]>,expectedMove:number|null):Promise<Analytics>{
- const fr=returns(history);const negative=[...fr.values()].filter(x=>x<0).map(Math.abs);
+ const fr=returns(history);const negative=Array.from(fr.values()).filter(x=>x<0).map(Math.abs);
  const cheapness=expectedMove!=null&&expectedMove<0?Math.min(100,percentile(Math.abs(expectedMove),negative)*1.05):0;
  const last60=history.slice(-60).map(x=>x.value);const peak=Math.max(...last60,nav??0);const dd=nav!=null&&peak>0?Math.max(0,(peak-nav)/peak*100):0;
- const recent=[...fr.values()].slice(-60),mean=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0;const vol=recent.length?Math.sqrt(252)*Math.sqrt(recent.reduce((a,x)=>a+(x-mean)**2,0)/recent.length):null;
- const fundArr:number[]=[],basketArr:number[]=[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();for(const m of returnMaps)for(const d of m.keys())allDates.add(d);
- for(const d of allDates){const fv=fr.get(d);if(fv==null)continue;const vals=returnMaps.map(m=>m.get(d)).filter((x):x is number=>x!=null);if(vals.length){fundArr.push(fv);basketArr.push(vals.reduce((a,b)=>a+b,0)/vals.length);}}
+ const recent=Array.from(fr.values()).slice(-60),mean=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0;const vol=recent.length?Math.sqrt(252)*Math.sqrt(recent.reduce((a,x)=>a+(x-mean)**2,0)/recent.length):null;
+ const fundArr:number[]=[],basketArr:number[]=[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();for(const m of returnMaps)for(const d of Array.from(m.keys()))allDates.add(d);
+ for(const d of Array.from(allDates)){const fv=fr.get(d);if(fv==null)continue;const vals=returnMaps.map(m=>m.get(d)).filter((x):x is number=>x!=null);if(vals.length){fundArr.push(fv);basketArr.push(vals.reduce((a,b)=>a+b,0)/vals.length);}}
  const b=beta(fundArr,basketArr);return{beta:b,volatility:vol,drawdown:dd,cheapness,historyCoverage:Math.min(100,history.length/500*100),basketSensitivity:b,estimatedChange:null};
 }
 
@@ -83,13 +83,13 @@ export async function GET(){
   const [amfiMap,nse]=await Promise.all([amfi(),nseRows()]);
   const indices:IndexRow[]=await Promise.all(indexNames.map(async([name,group])=>{const n=findIndex(name,nse);if(n)return{name,value:n.value,change:n.change,status:'LIVE',group,source:'NSE'};const q=yahoo[name]?await yahooQuote(yahoo[name]):null;return{name,value:q?.value??null,change:q?.change??null,status:q?'LIVE':'UNAVAILABLE',group,source:q?'YAHOO':'UNAVAILABLE'};}));
   const map=new Map(indices.map(x=>[x.name,x]));
-  const needed=[...new Set(funds.flatMap(x=>x[3]).filter(n=>Boolean(yahoo[n])))];
+  const needed=Array.from(new Set(funds.flatMap(x=>x[3]).filter(n=>Boolean(yahoo[n]))));
   const indexHistories=new Map<string,Point[]>((await Promise.all(needed.map(async n=>[n,await yahooHistory(yahoo[n])] as [string,Point[]]))).filter(([,h])=>h.length>30));
   const histories=await Promise.all(funds.map(async([code])=>[code,await fundHistory(code)] as [string,Point[]]));
   const histMap=new Map(histories);
   const output=await Promise.all(funds.map(async([code,name,category,mappedNames])=>{
    const h=histMap.get(code)??[];const a=amfiMap.get(code);const nav=a?.nav??h.at(-1)?.value??null;const prev=h.at(-2)?.value??null;const change=a&&prev?((a.nav-prev)/prev)*100:(h.length>1?((h.at(-1)!.value-h.at(-2)!.value)/h.at(-2)!.value)*100:null);
-   const live=mappedNames.map(n=>map.get(n)).filter((x):x is IndexRow=>Boolean(x&&x.status==='LIVE'&&x.change!=null));const move=live.length?live.reduce((s,x)=>s+(x.change??0),0)/live.length:null;const falling=live.filter(x=>(x.change??0)<0).length;const confirmation=live.length?falling/live.length:0;const lead=live.length?live.reduce((best,x)=>(x.change??0)<(best.change??0)?x:best):null;
+   const live=mappedNames.map(n=>map.get(n)).filter((x):x is IndexRow=>Boolean(x&&x.status==='LIVE'&&x.change!=null));const move=live.length?live.reduce((s,x)=>s+(x.change??0),0)/live.length: null;const falling=live.filter(x=>(x.change??0)<0).length;const confirmation=live.length?falling/live.length:0;const lead=live.length?live.reduce((best,x)=>(x.change??0)<(best.change??0)?x:best):null;
    const provisional=await analytics(h,nav,mappedNames,indexHistories,null);const expectedMove=move!=null&&provisional.beta!=null?move*provisional.beta:null;const an=await analytics(h,nav,mappedNames,indexHistories,expectedMove);const relative=expectedMove!=null&&move!=null?expectedMove-move:null;
    const sectorScore=move==null?0:Math.max(0,Math.min(100,-move*35));const relativeScore=relative==null?0:Math.max(0,Math.min(100,-relative*55));const confirmationScore=confirmation*100;const qualityScore=quality[category]??75;const historyScore=an.cheapness;
    const dataConfidence=Math.round((live.length/Math.max(1,mappedNames.length)*60)+(an.historyCoverage*.20)+(an.beta!=null?20:0));
