@@ -17,3 +17,5 @@ export async function GET(req:Request){
     return NextResponse.json({error:'Live market feed unavailable',detail:error instanceof Error?error.message:'Unknown error'},{status:500,headers:{'Cache-Control':'no-store'}});
   }
 }
+
+// Smart MF Daily Decision Terminal: 60/40 Strategic + Daily NAV Opportunity by default.
