@@ -73,7 +73,7 @@ async function analytics(history:Point[],nav:number|null,mappedNames:string[],in
  const cheapness=expectedMove!=null&&expectedMove<0?Math.min(100,percentile(Math.abs(expectedMove),negative)*1.05):0;
  const last60=history.slice(-60).map(x=>x.value);const peak=Math.max(...last60,nav??0);const dd=nav!=null&&peak>0?Math.max(0,(peak-nav)/peak*100):0;
  const recent=Array.from(fr.values()).slice(-60),mean=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0;const vol=recent.length?Math.sqrt(252)*Math.sqrt(recent.reduce((a,x)=>a+(x-mean)**2,0)/recent.length):null;
- const fundArr:number[]=[],basketArr:number[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();returnMaps.forEach(m=>Array.from(m.keys()).forEach(d=>allDates.add(d)));
+ const fundArr:number[]=[],basketArr:number[]=[];const returnMaps=mappedNames.map(n=>returns(indexHistories.get(n)??[]));const allDates=new Set<string>();returnMaps.forEach(m=>Array.from(m.keys()).forEach(d=>allDates.add(d)));
  for(const d of Array.from(allDates)){const fv=fr.get(d);if(fv==null)continue;const vals=returnMaps.map(m=>m.get(d)).filter((x):x is number=>x!=null);if(vals.length){fundArr.push(fv);basketArr.push(vals.reduce((a,b)=>a+b,0)/vals.length);}}
  const b=beta(fundArr,basketArr);return{beta:b,volatility:vol,drawdown:dd,cheapness,historyCoverage:Math.min(100,history.length/500*100),basketSensitivity:b,estimatedChange:null};
 }
